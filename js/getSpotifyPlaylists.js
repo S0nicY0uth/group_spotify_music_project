@@ -2,12 +2,12 @@
 var globalToken, tokenExpiry=0
 var refresh_token = 'AQDxyxMb2JM7GiMgWu6A8PaREdLPz_9cVWeamxWrS3ZNUREH7LzsLse9zw7aj992ZWo2QyKCOb9DdoPSnyvjf1YdHaRsUEia063xhCg5UGZEjp9owf-vGWhh-ISO7Spn9Zs'
 var rp = require('request-promise'), PORT = process.env.PORT || 3333, express = require('express'), app = express(), PromiseThrottle = require('promise-throttle');
-var colours = require ('/Users/lionheart/code/js/tools/colours.js'), wait = require ('/Users/lionheart/code/js/tools/wait-promise.js')
-var errorRespond = require ('/Users/lionheart/code/js/tools/error-respond.js'), client_id = '95b153c2907f41ba813e1b5ca3ebdae6', client_secret = 'f338d2a27716445184d8509c314516b5'; 
+var colours = require ('./lib/colours.js'), wait = require ('./lib/wait-promise.js')
+var errorRespond = require ('./lib/error-respond.js'), client_id = '95b153c2907f41ba813e1b5ca3ebdae6', client_secret = 'f338d2a27716445184d8509c314516b5'; 
 var fs = require('fs')
-var fields = ['labels', 'artists', 'albums', 'tracks', 'albums_tracks', 'artists_tracks'],buffer="",labelData="",nextIndex=null,labelDataToAdd="",chris_album_id=0,chris_track_id=0,chris_artist_id=0
-var genres = require('/Users/lionheart/code/js/tools/genre-codes')
-var labelObject = require('/Users/lionheart/code/ruby/Week 3/music_sql/label_ids')
+var fields = ['labels', 'artists', 'albums', 'tracks', 'album_tracks', 'artists_tracks'],buffer="",labelData="",nextIndex=null,labelDataToAdd="",chris_album_id={},chris_track_id={},chris_artist_id={},k=0
+var genres = require('./lib/genre-codes')
+var labelObject = require('./lib/label_ids')
 
 
 var promiseThrottle = new PromiseThrottle({
@@ -42,6 +42,10 @@ Object.prototype.safe = function (path) {
     } catch (e) {
     return 'Error: Incorrect attributes in resolve function'
     }
+}
+
+function escQuotes(string){
+    return typeof string !="undefined"?string.replace(/"/g, '\\\"'):"empty"
 }
 
 function rpSafe (options) {
@@ -472,7 +476,11 @@ rp.post({
     tokenExpiry = new Date() + (Math.floor(body.expires_in / 60) * 10000)
 
 
-}).then(()=>{return fs.readFile('label_ids.js', 'utf8', function (err, data) {labelData=data;})}).then(() => {
+}).then(() => {
+    return fs.readFile('./lib/label_ids.js', 'utf8', function (err, data) {
+        labelData = data;
+    })
+}).then(() => {
 
 
     return getTotals.multiCall(['a', 'b'])
@@ -482,124 +490,137 @@ rp.post({
 }).then((res) => {
     return getPlaylists.multiCall(res)
 }).then((res) => {
-    var spotObjPLpop = [],temp=[]
-   
-    res.forEach((items,i)=>{
-       
-      if (typeof items.items!='undefined'){
-       items.items.forEach((playlist,j)=>{
-        temp[i+j]= new spotObj()
-    temp[i+j].setPlaylistData(playlist)
-})
-}      
-})
+    var spotObjPLpop = [],
+        temp = []
 
-   
-  
+    res.forEach((items, i) => {
+
+        if (typeof items.items != 'undefined') {
+            items.items.forEach((playlist, j) => {
+                temp[i + j] = new spotObj()
+                temp[i + j].setPlaylistData(playlist)
+            })
+        }
+    })
     return getAlbums.multiCall(temp)
 
+}).then((spotObj) => {
+    var inc = 0
+    labelData = labelData.substring(0, labelData.length - 1)
 
-}).then((spotObj)=>{
-    var inc=0
-
-    labelData=labelData.substring(0,labelData.length-1)
-
-    spotObj.forEach((item)=>{
-    
-        typeof item=='object'?item.setAlbumData(item.res):null
+    spotObj.forEach((item) => {
+        typeof item == 'object' ? item.setAlbumData(item.res) : null
     })
 
     fields.forEach((field, i) => {
+        k = 0
         buffer += `INSERT INTO ${field} VALUES\n`
         spotObj.forEach((res, i) => {
-            typeof res.genre=='undefined'? res.genre=[]:null
-            res.genre.forEach(()=>{typeof res.genre=='undefined'? res.genre='empty':null})
-            
-            if ( labelData.indexOf(res.label)==-1 && labelDataToAdd.indexOf(res.label)==-1  ){
-                nextIndex = labelData.split(':')[labelData.split(':').length-1].substring(0,labelData.split(':')[labelData.split(':').length-1].length-1)
-                console.log('Next Index: /'+nextIndex+'/')
+            typeof res.genre == 'undefined' ? res.genre = [] : null
+            res.genre.forEach(() => {
+                typeof res.genre == 'undefined' ? res.genre = 'empty' : null
+            })
+
+            if (labelData.indexOf(res.label) == -1 && labelDataToAdd.indexOf(res.label) == -1) {
+                nextIndex = labelData.split(':')[labelData.split(':').length - 1].substring(0, labelData.split(':')[labelData.split(':').length - 1].length - 1)
                 inc++
-                console.log('inc: '+inc)
-                nextIndex=parseInt(nextIndex)+inc
-                labelObject[res.label]=nextIndex
+                nextIndex = parseInt(nextIndex) + inc
+                labelObject[res.label] = nextIndex
             }
-            // get last index number of previous label in file
+            // This is a bit of a mess please feel free to tidy up i ran out of time!
 
             switch (field) {
-    
-    
+
+
                 case 'labels':
-                if ( i < (spotObj.length-1)){
-                    if(labelData.indexOf(res.label)==-1 && labelDataToAdd.indexOf(res.label)==-1) {
-                        buffer += `(${labelObject[res.label].toString()}, "${res.label}"),`
-                        labelDataToAdd+=',\n"'+res.label+'":'+nextIndex.toString()
-                    }}
-                    else{ buffer=buffer.substring(0, buffer.length - 1) +  '\n;\n\n'}
+                    if (i < (spotObj.length - 1)) {
+                        if (labelData.indexOf(res.label) == -1 && labelDataToAdd.indexOf(res.label) == -1) {
+                            buffer += `(${labelObject[res.label]}, "${escQuotes(res.label)}"),`
+                            labelDataToAdd += ',\n"' + res.label + '":' + nextIndex.toString()
+                        }
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n'
+                    }
                     break;
-                /*case 'genres':
-                    i < (spotObj.length-1)? Array.isArray(res.genre)? res.genre.forEach((genre)=>{buffer += `(${genres[genre]}, "${genre}"),`}) :buffer += `(${genres[res.genre]}, "${res.genre}"),` : buffer=buffer.substring(0, buffer.length - 1) + '\n;\n\n'
-                    break*/
+
                 case 'artists':
-                    if (i < (spotObj.length-1)){   
-                        if (Array.isArray (res.artist_name)){
-                            res.artist_name.forEach((artist,i)=>{
-                                if(!exists(buffer,artist)) { 
-                                    chris_artist_id++
-                                    buffer += `(${parseInt(chris_artist_id)}, "${res.artist_id[i]}", "${artist}"),`
-                            }
+                    if (i < (spotObj.length - 1)) {
+                        if (Array.isArray(res.artist_id)) {
+                            res.artist_id.forEach((artist_id, i) => {
+                                if (!exists(buffer, artist_id)) {
+                                    k++
+                                    chris_artist_id[artist_id] = k
+                                    buffer += `(${k}, "${artist_id}", "${escQuotes(res.artist_name[i])}"),`
+                                }
                             })
-                            } else {if(!exists (buffer,res.artist_name)){
-                                chris_artist_id++
-                                buffer += `("${res.artist_name}", ${parseInt(chris_artist_id)}),`
+                        } else {
+                            if (!exists(buffer, res.artist_id)) {
+                                k++
+                                chris_artist_id[res.artist_id] = k
+                                buffer += `(${k}, "${res.artist_id}", "${escQuotes(res.artist_name)}"),`
+                            }
                         }
-                        }
-                        }
-                        else { buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n'}; break;
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n'
+                    };
+                    break;
+
                 case 'albums':
-                    if (i < (spotObj.length-1)){
-                        chris_album_id++
-                    if (!exists (buffer,res.album_id)){ buffer+=`(${parseInt(chris_album_id)}, "${res.album_id}", "${res.album_title}", "${res.release_date}", "${res.upc}", "${res.label}", ${1}),`}
-                    } 
-                        else {buffer=buffer.substring(0, buffer.length - 1) + '\n;\n\n'}; break;
+                    if (i < (spotObj.length - 1)) {
+                        if (!exists(buffer, res.album_id)) {
+                            k++
+                            chris_album_id[res.album_id] = 100000 + k
+                            buffer += `(${100000+k}, "${res.album_id}", "${escQuotes(res.album_title)}", "${res.release_date}", ${parseInt(res.upc)}, "${labelObject[res.label]}"),`
+                        }
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n'
+                    };
+                    break;
                 case 'tracks':
-                    if (i < (spotObj.length-1)){
-                        if(!exists (buffer,res.track_id)){
-                            chris_track_id++
-                            buffer += `(${parseInt(chris_track_id)}, "${res.track_id}", "${res.track_name}"),`}
-                     } else {buffer=buffer.substring(0, buffer.length - 1) + '\n;\n\n';}
-                    break
-                case 'albums_tracks':
-                    i < (spotObj.length-1) ? buffer += `(${i}, ${parseInt(chris_album_id)}, ${parseInt(chris_track_id)}, ${1}),` : buffer=buffer.substring(0, buffer.length - 1) + '\n;\n\n';
-                    break
+                    if (i < (spotObj.length - 1)) {
+                        if (!exists(buffer, res.track_id)) {
+                            k++
+                            chris_track_id[res.track_id] = 333333 + k
+                            buffer += `(${333333+k}, "${res.track_id}", "${escQuotes(res.track_name)}"),`
+                        }
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n';
+                    }
+                    break;
+                case 'album_tracks':
+                    if (i < (spotObj.length - 1)) {
+                        k++
+                        buffer += `(${k}, ${chris_album_id[res.album_id]}, ${chris_track_id[res.track_id]}, ${1}),`
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n';
+                    }
+                    break;
                 case 'artists_tracks':
-                    i < (spotObj.length-1) ? buffer += `(${i}, ${parseInt(chris_artist_id)}, ${parseInt(chris_track_id)}),` : buffer=buffer.substring(0, buffer.length - 1) + '\n;\n\n';
-                    break
-    
+                    if (i < (spotObj.length - 1)) {
+                        if (Array.isArray(res.artist_id)) {
+                            res.artist_id.forEach((id) => {
+                                k++
+                                buffer += `(${k}, ${chris_artist_id[id]}, ${chris_track_id[res.track_id]}),`
+                            })
+                        } else {
+                            k++
+                            buffer += `(${k}, ${chris_artist_id[res.artists_id]}, ${chris_track_id[res.track_id]}),`
+                        }
+                    } else {
+                        buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n';
+                    }
+                    break;
             }
-            nextIndex=null
+            nextIndex = null
         })
     })
-    
-    fs.writeFile(`spotSrch_${process.argv[2]}.sql`, buffer, function (err) {
-        if (err) throw err;
-        console.log(`Saved data as 'spotSrch_${process.argv[2]}.sql'`)
-    })
-    fs.writeFile(`/Users/lionheart/code/ruby/Week 3/music_sql/label_ids.js`, labelData+labelDataToAdd.substring(2,labelData.length)+'\n}', function (err) {
-        if (err) throw err;
-        console.log(`Saved label data`)
-    })
-    
 
-
-
-}).then(()=>{
-    return fs.writeFile(`spotSrch_${process.argv[2]}.sql`, buffer, function (err) {
+}).then(() => {
+    return fs.writeFile(`${process.argv[3]}/${process.argv[2]}.sql`, buffer, function (err) {
         if (err) throw err;
-        console.log(`Saved data as 'spotSrch_${process.argv[2]}.sql'`)
+        console.log(`Saved data as '${process.argv[3]}/${process.argv[2]}.sql'`)
     })
-}).then(()=>{
-    fs.writeFile(`/Users/lionheart/code/ruby/Week 3/music_sql/label_ids.js`, labelData+labelDataToAdd.substring(2,labelData.length)+'\n}', function (err) {
-        if (err) throw err;
-        console.log(`Saved label data`)
-    })
+
+}).catch((e) => {
+    return errorRespond(e)
 })

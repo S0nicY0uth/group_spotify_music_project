@@ -12,10 +12,8 @@ CREATE TABLE albums (
   release_date DATE NOT NULL,
   upc_code INTEGER NOT NULL,
   label_id INTEGER NOT NULL,
-  genre_id INTEGER NOT NULL,
   PRIMARY KEY (id),
-  FOREIGN KEY (label_id)  REFERENCES labels (id) ON DELETE CASCADE,
-  FOREIGN KEY (genre_id)  REFERENCES genres (id) ON DELETE CASCADE
+  FOREIGN KEY (label_id)  REFERENCES labels (id) ON DELETE CASCADE
 );
 
 CREATE TABLE tracks (

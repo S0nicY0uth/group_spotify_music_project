@@ -9,6 +9,7 @@ ActiveRecord::Base.logger = Logger.new(STDOUT)
 
 class Album < ActiveRecord::Base
   belongs_to :label
+  belongs_to :genre
   has_many :album_tracks
   has_many :tracks, through: :album_tracks
 
@@ -28,15 +29,16 @@ end
 
 class Artist < ActiveRecord::Base
   has_and_belongs_to_many :tracks
-  has_and_belongs_to_many :albums
-  has_many :artists_tracks
   validates :name, presence: true, uniqueness: true
 end
 
+class Genre < ActiveRecord::Base
+  has_many :albums
+  belongs_to :album
+end
 
 class Track < ActiveRecord::Base
   has_and_belongs_to_many :artists
-  has_and_belongs_to_many :albums
   def to_s
     myArtists = artists.map(&:name).join(',')
     "#{myArtists} - #{title}"

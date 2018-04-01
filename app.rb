@@ -1,4 +1,4 @@
-require './models'
+require './lib/models'
 require 'rspotify'
 require 'json'
 
@@ -11,7 +11,7 @@ def displayOptions(options)
   options.each_with_index do |o,i|
     puts "#{i} - #{o}"
   end
-  option = gets.chomp
+  gets.chomp
 end
 
 def uniqueValue(table,input,field)

@@ -1,6 +1,6 @@
 
 var globalToken, tokenExpiry=0
-var refresh_token = '****MikzS0odEFForNQuszayS0xaV275wSopMwmWJFkthexvKruEkL3ZcFOKO8p2IFrcscIqd8Ma49Acld9dUh20cqBmbju_w18ojBwLhdpvZWC_xbHLEdqDLdJNa6M1Lc'
+var refresh_token = 'AQDxyxMb2JM7GiMgWu6A8PaREdLPz_9cVWeamxWrS3ZNUREH7LzsLse9zw7aj992ZWo2QyKCOb9DdoPSnyvjf1YdHaRsUEia063xhCg5UGZEjp9owf-vGWhh-ISO7Spn9Zs'
 var rp = require('request-promise'), PORT = process.env.PORT || 3333, express = require('express'), app = express(), PromiseThrottle = require('promise-throttle');
 var colours = require ('./lib/colours.js'), wait = require ('./lib/wait-promise.js')
 var errorRespond = require ('./lib/error-respond.js'), client_id = '95b153c2907f41ba813e1b5ca3ebdae6', client_secret = 'f338d2a27716445184d8509c314516b5'; 
@@ -569,8 +569,8 @@ rp.post({
                     if (i < (spotObj.length - 1)) {
                         if (!exists(buffer, res.album_id)) {
                             k++
-                            chris_album_id[res.album_id] = 100000 + k
-                            buffer += `(${100000+k}, "${res.album_id}", "${escQuotes(res.album_title)}", "${res.release_date}", ${parseInt(res.upc)}, "${labelObject[res.label]}"),`
+                            chris_album_id[res.album_id] = k
+                            buffer += `(${k}, "${res.album_id}", "${escQuotes(res.album_title)}", "${res.release_date}", ${parseInt(res.upc)}, "${labelObject[res.label]}"),`
                         }
                     } else {
                         buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n'
@@ -580,8 +580,8 @@ rp.post({
                     if (i < (spotObj.length - 1)) {
                         if (!exists(buffer, res.track_id)) {
                             k++
-                            chris_track_id[res.track_id] = 333333 + k
-                            buffer += `(${333333+k}, "${res.track_id}", "${escQuotes(res.track_name)}"),`
+                            chris_track_id[res.track_id] = k
+                            buffer += `(${k}, "${res.track_id}", "${escQuotes(res.track_name)}"),`
                         }
                     } else {
                         buffer = buffer.substring(0, buffer.length - 1) + '\n;\n\n';

@@ -2,7 +2,7 @@ require 'active_record'
 
 ActiveRecord::Base.establish_connection(
   :adapter => 'sqlite3',
-  :database => 'music.db'
+  :database => 'hiphop.db'
 )
 
 ActiveRecord::Base.logger = Logger.new(STDOUT)
@@ -27,18 +27,27 @@ class AlbumTrack < ActiveRecord::Base
 end
 
 class Artist < ActiveRecord::Base
-  has_and_belongs_to_many :tracks
-  has_and_belongs_to_many :albums
-  has_many :artists_tracks
   validates :name, presence: true, uniqueness: true
+  has_and_belongs_to_many :tracks
+    
+  def genres
+    Genre.select(:name).joins(tracks: :artists).where("artists.id = ?", id).distinct
+  end
+  
+  def albums
+    Album.joins(tracks: :artists).where("artists.id = ?", id).distinct
+  end
+
 end
 
 
 class Track < ActiveRecord::Base
   has_and_belongs_to_many :artists
-  has_and_belongs_to_many :albums
+  has_many :albums, through: :album_tracks
+
   def to_s
     myArtists = artists.map(&:name).join(',')
     "#{myArtists} - #{title}"
   end
 end
+
